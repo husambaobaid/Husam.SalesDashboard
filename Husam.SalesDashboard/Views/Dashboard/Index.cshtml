@@ -2,5 +2,53 @@
     ViewData["Title"] = "Dashboard";
 }
 
-<h1>@ViewData["Title"]</h1>
-<p>@ViewBag.Message</p>
+<h1>Dashboard</h1>
+
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card p-3">
+            <h5>Total Revenue</h5>
+            <h3>@String.Format("{0:0.00}", ViewBag.TotalRevenue)</h3>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card p-3">
+            <h5>Sales Count</h5>
+            <h3>@ViewBag.SalesCount</h3>
+        </div>
+    </div>
+</div>
+
+<hr />
+<h4>Revenue by Month</h4>
+<canvas id="revenueByMonth" height="100"></canvas>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    (async function() {
+      const res = await fetch('@Url.Action("RevenueByMonth", "Dashboard")');
+      const rows = await res.json();
+
+      const labels = rows.map(r => r.label);
+      const totals = rows.map(r => r.total);
+
+      const ctx = document.getElementById('revenueByMonth').getContext('2d');
+      new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels,
+          datasets: [{
+            label: 'Revenue',
+            data: totals,
+            tension: 0.3,
+            fill: false
+          }]
+        },
+        options: {
+          responsive: true,
+          plugins: { legend: { display: true } },
+          scales: { y: { beginAtZero: true } }
+        }
+      });
+    })();
+</script>
