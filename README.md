@@ -1,29 +1,24 @@
-# Husam.SalesDashboard
+# 📊 Sales Dashboard
 
-A **Sales Dashboard web application** built with **ASP.NET Core MVC, Entity Framework Core, SQL Server, Chart.js, and Bootstrap 5**.  
-It allows managing Customers, Products, and Sales, while providing a real-time dashboard with charts and KPIs.
+A full-stack **ASP.NET Core MVC + SQL Server** web application for managing sales, customers, and products with a beautiful dashboard.
 
----
+## 🌐 Live Demo
+👉 [Try it here](https://husam-salesdashboard-esfrhjczcdfeh9fc.canadacentral-01.azurewebsites.net/)
 
 ## ✨ Features
-- **CRUD** operations for Customers, Products, and Sales
-- **Dashboard KPIs** (Total Revenue, Sales Count)
-- **Revenue by Month** chart (line chart using Chart.js)
-- **Top 5 Products by Revenue** (bar chart)
-- **Top 5 Customers by Revenue** (bar chart)
-- **CSV Upload** for bulk import of sales (via CsvHelper)
-- **Responsive UI** with Bootstrap 5 + Icons
-
----
+- Dashboard with KPIs (Total Revenue, Sales Count, etc.)
+- Interactive charts (Revenue by Month, Top Products, Top Customers)
+- CRUD operations for Customers, Products, Sales
+- Upload sales via **CSV file**
+- Export data to **CSV** and **Excel**
+- Year filtering on dashboard and sales list
+- Responsive UI with **Bootstrap 5**
 
 ## 🛠️ Tech Stack
-- **ASP.NET Core 8** (MVC)
-- **Entity Framework Core** + **SQL Server**
-- **Chart.js** (for charts and data visualization)
-- **Bootstrap 5 + Bootstrap Icons** (responsive UI)
-- **CsvHelper** (CSV parsing and upload)
-
----
+- **Backend**: ASP.NET Core MVC 7, Entity Framework Core
+- **Database**: SQL Server (Azure SQL)
+- **Frontend**: Bootstrap 5, Chart.js
+- **Hosting**: Azure App Service
 
 ## 🚀 Getting Started
 
