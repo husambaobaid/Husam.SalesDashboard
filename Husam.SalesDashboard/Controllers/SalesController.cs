@@ -7,6 +7,9 @@ using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
 using Husam.SalesDashboard.Data;
 using Husam.SalesDashboard.Models;
+using CsvHelper;
+using Husam.SalesDashboard.Models.Imports;
+using System.Globalization;
 
 namespace Husam.SalesDashboard.Controllers
 {
@@ -165,6 +168,110 @@ namespace Husam.SalesDashboard.Controllers
         private bool SaleExists(int id)
         {
             return _context.Sales.Any(e => e.Id == id);
+        }
+
+        // GET: /Sales/Upload
+        public IActionResult Upload()
+        {
+            return View(); // simple file upload form
+        }
+
+        // POST: /Sales/Upload
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> Upload(IFormFile? file)
+        {
+            if (file == null || file.Length == 0)
+            {
+                TempData["UploadError"] = "Please choose a CSV file.";
+                return RedirectToAction(nameof(Upload));
+            }
+
+            int created = 0, updatedCustomers = 0, updatedProducts = 0, skipped = 0;
+            var errors = new List<string>();
+
+            using var reader = new StreamReader(file.OpenReadStream());
+            using var csv = new CsvReader(reader, CultureInfo.InvariantCulture);
+            csv.Context.RegisterClassMap<SaleCsvRowMap>();
+
+            List<SaleCsvRow> rows;
+            try
+            {
+                rows = csv.GetRecords<SaleCsvRow>().ToList();
+            }
+            catch (Exception ex)
+            {
+                TempData["UploadError"] = $"Invalid CSV format: {ex.Message}";
+                return RedirectToAction(nameof(Upload));
+            }
+
+            // Optional: transaction for integrity
+            using var tx = await _context.Database.BeginTransactionAsync();
+
+            try
+            {
+                foreach (var r in rows)
+                {
+                    try
+                    {
+                        if (string.IsNullOrWhiteSpace(r.Customer) || string.IsNullOrWhiteSpace(r.Product) || r.Quantity <= 0)
+                        {
+                            skipped++; continue;
+                        }
+
+                        // find or create Customer
+                        var customer = await _context.Customers.FirstOrDefaultAsync(c => c.Name == r.Customer!);
+                        if (customer == null)
+                        {
+                            customer = new Customer { Name = r.Customer!, Email = null };
+                            _context.Customers.Add(customer);
+                            updatedCustomers++;
+                        }
+
+                        // find or create Product
+                        var product = await _context.Products.FirstOrDefaultAsync(p => p.Name == r.Product!);
+                        if (product == null)
+                        {
+                            product = new Product { Name = r.Product!, UnitPrice = r.UnitPrice };
+                            _context.Products.Add(product);
+                            updatedProducts++;
+                        }
+
+                        // persist new (so IDs exist) without committing entire tx yet
+                        await _context.SaveChangesAsync();
+
+                        var sale = new Sale
+                        {
+                            CustomerId = customer.Id,
+                            ProductId = product.Id,
+                            Quantity = r.Quantity,
+                            UnitPriceAtSale = r.UnitPrice,       // price at sale time
+                            SoldAt = r.SoldAt
+                        };
+
+                        _context.Sales.Add(sale);
+                        created++;
+                    }
+                    catch (Exception innerEx)
+                    {
+                        skipped++;
+                        errors.Add(innerEx.Message);
+                    }
+                }
+
+                await _context.SaveChangesAsync();
+                await tx.CommitAsync();
+
+                TempData["UploadOk"] = $"Imported {created} sales. New customers: {updatedCustomers}, new products: {updatedProducts}, skipped: {skipped}.";
+            }
+            catch (Exception ex)
+            {
+                await tx.RollbackAsync();
+                TempData["UploadError"] = $"Upload failed: {ex.Message}";
+            }
+
+            // back to Sales index or show results page
+            return RedirectToAction(nameof(Index));
         }
     }
 }

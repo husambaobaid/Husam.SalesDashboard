@@ -1,0 +1,26 @@
+﻿@{
+    ViewData["Title"] = "Upload Sales (CSV)";
+}
+
+<h2>Upload Sales (CSV)</h2>
+
+@if (TempData["UploadError"] != null)
+{
+        <div class="alert alert-danger">@TempData["UploadError"]</div>
+}
+@if (TempData["UploadOk"] != null)
+{
+        <div class="alert alert-success">@TempData["UploadOk"]</div>
+}
+
+<form asp-action="Upload" method="post" enctype="multipart/form-data" class="mt-3">
+    <div class="mb-3">
+        <label class="form-label">CSV File</label>
+        <input type="file" name="file" accept=".csv" class="form-control" />
+        <div class="form-text">
+            Columns required: <code>Customer, Product, Quantity, UnitPrice, SoldAt</code> (YYYY-MM-DD)
+        </div>
+    </div>
+    <button type="submit" class="btn btn-primary">Upload</button>
+    <a asp-action="Index" class="btn btn-secondary ms-2">Back to Sales</a>
+</form>
