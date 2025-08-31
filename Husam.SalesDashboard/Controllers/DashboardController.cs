@@ -23,7 +23,6 @@ namespace Husam.SalesDashboard.Controllers
             return View();
         }
 
-        // ✅ New endpoint for the Chart.js API
         [HttpGet]
         public async Task<IActionResult> RevenueByMonth()
         {
@@ -31,11 +30,36 @@ namespace Husam.SalesDashboard.Controllers
                 .GroupBy(s => new { s.SoldAt.Year, s.SoldAt.Month })
                 .Select(g => new
                 {
-                    Label = new DateTime(g.Key.Year, g.Key.Month, 1)
-                                .ToString("yyyy-MM", CultureInfo.InvariantCulture),
+                    Year = g.Key.Year,
+                    Month = g.Key.Month,
                     Total = g.Sum(x => x.UnitPriceAtSale * x.Quantity)
                 })
-                .OrderBy(x => x.Label)
+                .OrderBy(x => x.Year).ThenBy(x => x.Month)
+                .ToListAsync();
+
+            // ✅ Format labels in C# (not in SQL)
+            var result = data
+                .Select(x => new
+                {
+                    Label = new DateTime(x.Year, x.Month, 1).ToString("yyyy-MM"),
+                    x.Total
+                });
+
+            return Json(result);
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> TopProducts()
+        {
+            var data = await _context.Sales
+                .GroupBy(s => s.Product!.Name)
+                .Select(g => new
+                {
+                    Product = g.Key!,
+                    Total = g.Sum(x => x.UnitPriceAtSale * x.Quantity)
+                })
+                .OrderByDescending(x => x.Total)
+                .Take(5)
                 .ToListAsync();
 
             return Json(data);

@@ -52,3 +52,33 @@
       });
     })();
 </script>
+
+
+<hr />
+<h4>Top 5 Products (Revenue)</h4>
+<canvas id="topProducts" height="100"></canvas>
+
+<script>
+    (async function () {
+      const res = await fetch('@Url.Action("TopProducts", "Dashboard")');
+      if (!res.ok) return;
+      const rows = await res.json();
+
+      const labels = rows.map(r => r.product ?? r.Product ?? "Unknown");
+      const totals  = rows.map(r => r.total ?? r.Total ?? 0);
+
+      const ctx = document.getElementById('topProducts').getContext('2d');
+      new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels,
+          datasets: [{ label: 'Revenue', data: totals }]
+        },
+        options: {
+          responsive: true,
+          plugins: { legend: { display: true } },
+          scales: { y: { beginAtZero: true } }
+        }
+      });
+    })();
+</script>
