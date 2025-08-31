@@ -10,6 +10,7 @@ using Husam.SalesDashboard.Models;
 using CsvHelper;
 using Husam.SalesDashboard.Models.Imports;
 using System.Globalization;
+using ClosedXML.Excel;
 
 namespace Husam.SalesDashboard.Controllers
 {
@@ -22,11 +23,32 @@ namespace Husam.SalesDashboard.Controllers
             _context = context;
         }
 
-        // GET: Sales
-        public async Task<IActionResult> Index()
+        // GET: Sales?year=2025
+        public async Task<IActionResult> Index(int? year)
         {
-            var appDbContext = _context.Sales.Include(s => s.Customer).Include(s => s.Product);
-            return View(await appDbContext.ToListAsync());
+            var salesQuery = _context.Sales
+                .Include(s => s.Customer)
+                .Include(s => s.Product)
+                .AsQueryable();
+
+            // Build Year dropdown from all sales (distinct years)
+            var years = await _context.Sales
+                .Select(s => s.SoldAt.Year)
+                .Distinct()
+                .OrderBy(y => y)
+                .ToListAsync();
+
+            if (year.HasValue)
+                salesQuery = salesQuery.Where(s => s.SoldAt.Year == year.Value);
+
+            ViewBag.Years = years;
+            ViewBag.SelectedYear = year;
+
+            var items = await salesQuery
+                .OrderByDescending(s => s.SoldAt)
+                .ToListAsync();
+
+            return View(items);
         }
 
         // GET: Sales/Details/5
@@ -58,8 +80,6 @@ namespace Husam.SalesDashboard.Controllers
         }
 
         // POST: Sales/Create
-        // To protect from overposting attacks, enable the specific properties you want to bind to.
-        // For more details, see http://go.microsoft.com/fwlink/?LinkId=317598.
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Create([Bind("Id,CustomerId,ProductId,Quantity,UnitPriceAtSale,SoldAt")] Sale sale)
@@ -94,8 +114,6 @@ namespace Husam.SalesDashboard.Controllers
         }
 
         // POST: Sales/Edit/5
-        // To protect from overposting attacks, enable the specific properties you want to bind to.
-        // For more details, see http://go.microsoft.com/fwlink/?LinkId=317598.
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Edit(int id, [Bind("Id,CustomerId,ProductId,Quantity,UnitPriceAtSale,SoldAt")] Sale sale)
@@ -272,6 +290,89 @@ namespace Husam.SalesDashboard.Controllers
 
             // back to Sales index or show results page
             return RedirectToAction(nameof(Index));
+        }
+
+        // GET: /Sales/ExportCsv
+        public async Task<FileResult> ExportCsv(int? year = null)
+        {
+            var query = _context.Sales
+                .Include(s => s.Customer)
+                .Include(s => s.Product)
+                .AsQueryable();
+
+            if (year.HasValue)
+                query = query.Where(s => s.SoldAt.Year == year.Value);
+
+            var rows = await query
+                .OrderBy(s => s.SoldAt)
+                .Select(s => new
+                {
+                    Customer = s.Customer!.Name,
+                    Product = s.Product!.Name,
+                    s.Quantity,
+                    s.UnitPriceAtSale,
+                    s.SoldAt,
+                    Total = s.UnitPriceAtSale * s.Quantity
+                })
+                .ToListAsync();
+
+            using var ms = new MemoryStream();
+            using (var writer = new StreamWriter(ms, leaveOpen: true))
+            using (var csv = new CsvWriter(writer, CultureInfo.InvariantCulture))
+            {
+                csv.WriteRecords(rows);
+            }
+            ms.Position = 0;
+
+            var fileName = year.HasValue ? $"Sales_{year}.csv" : "Sales_All.csv";
+            return File(ms.ToArray(), "text/csv", fileName);
+        }
+
+        // GET: /Sales/ExportExcel
+        public async Task<FileResult> ExportExcel(int? year = null)
+        {
+            var query = _context.Sales
+                .Include(s => s.Customer)
+                .Include(s => s.Product)
+                .AsQueryable();
+
+            if (year.HasValue)
+                query = query.Where(s => s.SoldAt.Year == year.Value);
+
+            var rows = await query
+                .OrderBy(s => s.SoldAt)
+                .Select(s => new
+                {
+                    Customer = s.Customer!.Name,
+                    Product = s.Product!.Name,
+                    s.Quantity,
+                    s.UnitPriceAtSale,
+                    s.SoldAt,
+                    Total = s.UnitPriceAtSale * s.Quantity
+                })
+                .ToListAsync();
+
+            using var wb = new XLWorkbook();
+            var ws = wb.Worksheets.Add("Sales");
+            ws.Cell(1, 1).InsertTable(rows);
+            ws.Columns().AdjustToContents();
+
+            using var ms = new MemoryStream();
+            wb.SaveAs(ms);
+
+            var fileName = year.HasValue ? $"Sales_{year}.xlsx" : "Sales_All.xlsx";
+            return File(ms.ToArray(),
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                fileName);
+        }
+
+        // Optional: quick link to export the *currently selected year* from Dashboard
+        // e.g., /Sales/ExportForDashboard?year=2025&type=csv|excel
+        public IActionResult ExportForDashboard(int? year, string type = "csv")
+        {
+            return type.Equals("excel", StringComparison.OrdinalIgnoreCase)
+                ? RedirectToAction(nameof(ExportExcel), new { year })
+                : RedirectToAction(nameof(ExportCsv), new { year });
         }
     }
 }

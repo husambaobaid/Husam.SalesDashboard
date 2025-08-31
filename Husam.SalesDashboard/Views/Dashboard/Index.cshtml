@@ -1,84 +1,183 @@
 ﻿@{
     ViewData["Title"] = "Dashboard";
+    var years = (IEnumerable<int>)(ViewBag.Years ?? Array.Empty<int>());
+    int? selectedYear = ViewBag.SelectedYear as int?;
 }
 
-<h1>Dashboard</h1>
+<div class="d-flex align-items-center justify-content-between mb-3">
+    <h1 class="h2 mb-0">Dashboard</h1>
+    <a asp-controller="Sales" asp-action="Upload" class="btn btn-outline-secondary">
+        <i class="bi bi-upload me-1"></i> Upload CSV
+    </a>
+</div>
 
-<div class="row mb-4">
-    <div class="col-md-3">
-        <div class="card p-3">
-            <h5>Total Revenue</h5>
-            <h3>@String.Format("{0:0.00}", ViewBag.TotalRevenue)</h3>
+<!-- Filters -->
+<form method="get" asp-controller="Dashboard" asp-action="Index" class="row g-2 mb-4">
+    <div class="col-auto">
+        <label class="form-label mb-0 small text-muted">Year</label>
+        <select name="year" class="form-select">
+            @* All Years option *@
+            @if (selectedYear == null)
+            {
+                <option value="" selected>All Years</option>
+            }
+            else
+            {
+                <option value="">All Years</option>
+            }
+
+            @* One option per year *@
+            @foreach (var y in years)
+            {
+                if (selectedYear == y)
+                {
+                    <option value="@y" selected>@y</option>
+                }
+                else
+                {
+                    <option value="@y">@y</option>
+                }
+            }
+        </select>
+    </div>
+    <div class="col-auto align-self-end">
+        <button type="submit" class="btn btn-primary">
+            <i class="bi bi-funnel me-1"></i> Apply
+        </button>
+        <a asp-controller="Dashboard" asp-action="Index" class="btn btn-light ms-2">
+            Reset
+        </a>
+    </div>
+</form>
+
+<!-- KPI cards -->
+<div class="row g-3 mb-4">
+    <div class="col-12 col-md-4 col-lg-3">
+        <div class="card kpi shadow-sm">
+            <div class="card-body">
+                <div class="d-flex align-items-center gap-2 mb-2">
+                    <i class="bi bi-currency-dollar fs-4 text-success"></i>
+                    <h6 class="card-subtitle text-muted mb-0">Total Revenue</h6>
+                </div>
+                <div class="display-6 fw-semibold">@String.Format("{0:0.00}", ViewBag.TotalRevenue)</div>
+            </div>
         </div>
     </div>
-    <div class="col-md-3">
-        <div class="card p-3">
-            <h5>Sales Count</h5>
-            <h3>@ViewBag.SalesCount</h3>
+    <div class="col-12 col-md-4 col-lg-3">
+        <div class="card kpi shadow-sm">
+            <div class="card-body">
+                <div class="d-flex align-items-center gap-2 mb-2">
+                    <i class="bi bi-receipt fs-4 text-primary"></i>
+                    <h6 class="card-subtitle text-muted mb-0">Sales Count</h6>
+                </div>
+                <div class="display-6 fw-semibold">@ViewBag.SalesCount</div>
+            </div>
         </div>
     </div>
 </div>
 
-<hr />
-<h4>Revenue by Month</h4>
-<canvas id="revenueByMonth" height="100"></canvas>
+<!-- Charts grid -->
+<div class="row g-3">
+    <div class="col-12 col-lg-6">
+        <div class="card shadow-sm chart-card">
+            <div class="card-header bg-white">
+                <strong>Revenue by Month</strong>
+            </div>
+            <div class="card-body">
+                <canvas id="revenueByMonth" height="110"></canvas>
+            </div>
+        </div>
+    </div>
 
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<script>
-    (async function() {
-      const res = await fetch('@Url.Action("RevenueByMonth", "Dashboard")');
-      const rows = await res.json();
+    <div class="col-12 col-lg-6">
+        <div class="card shadow-sm chart-card">
+            <div class="card-header bg-white">
+                <strong>Top 5 Products (Revenue)</strong>
+            </div>
+            <div class="card-body">
+                <canvas id="topProducts" height="110"></canvas>
+            </div>
+        </div>
+    </div>
 
-      const labels = rows.map(r => r.label);
-      const totals = rows.map(r => r.total);
+    <div class="col-12">
+        <div class="card shadow-sm chart-card mt-3">
+            <div class="card-header bg-white">
+                <strong>Top 5 Customers (Revenue)</strong>
+            </div>
+            <div class="card-body">
+                <canvas id="topCustomers" height="110"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
 
-      const ctx = document.getElementById('revenueByMonth').getContext('2d');
-      new Chart(ctx, {
-        type: 'line',
-        data: {
-          labels,
-          datasets: [{
-            label: 'Revenue',
-            data: totals,
-            tension: 0.3,
-            fill: false
-          }]
-        },
-        options: {
-          responsive: true,
-          plugins: { legend: { display: true } },
-          scales: { y: { beginAtZero: true } }
+@section Scripts {
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        // Selected year from server ('' means all years)
+        const selectedYear = '@(selectedYear?.ToString() ?? "")';
+
+        // Helper: build URL with optional year
+        function withYear(url) {
+            return selectedYear ? `${url}?year=${selectedYear}` : url;
         }
-      });
-    })();
-</script>
 
+        // Revenue by Month (line)
+        (async function () {
+            const res = await fetch(withYear('@Url.Action("RevenueByMonth", "Dashboard")'));
+            if (!res.ok) return;
+            const rows = await res.json();
+            const labels = rows.map(r => r.label ?? r.Label);
+            const totals  = rows.map(r => r.total ?? r.Total);
 
-<hr />
-<h4>Top 5 Products (Revenue)</h4>
-<canvas id="topProducts" height="100"></canvas>
+            if (!labels.length) {
+                document.getElementById('revenueByMonth').replaceWith(
+                    Object.assign(document.createElement('p'), { textContent: "No data for selected period." })
+                );
+                return;
+            }
 
-<script>
-    (async function () {
-      const res = await fetch('@Url.Action("TopProducts", "Dashboard")');
-      if (!res.ok) return;
-      const rows = await res.json();
+            const ctx = document.getElementById('revenueByMonth').getContext('2d');
+            new Chart(ctx, {
+                type: 'line',
+                data: { labels, datasets: [{ label: 'Revenue', data: totals, tension: 0.35, fill: false }] },
+                options: { responsive: true, scales: { y: { beginAtZero: true } } }
+            });
+        })();
 
-      const labels = rows.map(r => r.product ?? r.Product ?? "Unknown");
-      const totals  = rows.map(r => r.total ?? r.Total ?? 0);
+        // Top Products (bar)
+        (async function () {
+            const res = await fetch(withYear('@Url.Action("TopProducts", "Dashboard")'));
+            if (!res.ok) return;
+            const rows = await res.json();
 
-      const ctx = document.getElementById('topProducts').getContext('2d');
-      new Chart(ctx, {
-        type: 'bar',
-        data: {
-          labels,
-          datasets: [{ label: 'Revenue', data: totals }]
-        },
-        options: {
-          responsive: true,
-          plugins: { legend: { display: true } },
-          scales: { y: { beginAtZero: true } }
-        }
-      });
-    })();
-</script>
+            const labels = rows.map(r => r.product ?? r.Product ?? "Unknown");
+            const totals = rows.map(r => r.total ?? r.Total ?? 0);
+
+            const ctx = document.getElementById('topProducts').getContext('2d');
+            new Chart(ctx, {
+                type: 'bar',
+                data: { labels, datasets: [{ label: 'Revenue', data: totals }] },
+                options: { responsive: true, scales: { y: { beginAtZero: true } } }
+            });
+        })();
+
+        // Top Customers (bar)
+        (async function () {
+            const res = await fetch(withYear('@Url.Action("TopCustomers", "Dashboard")'));
+            if (!res.ok) return;
+            const rows = await res.json();
+
+            const labels = rows.map(r => r.customer ?? r.Customer ?? "Unknown");
+            const totals = rows.map(r => r.total ?? r.Total ?? 0);
+
+            const ctx = document.getElementById('topCustomers').getContext('2d');
+            new Chart(ctx, {
+                type: 'bar',
+                data: { labels, datasets: [{ label: 'Revenue', data: totals }] },
+                options: { responsive: true, scales: { y: { beginAtZero: true } } }
+            });
+        })();
+    </script>
+}

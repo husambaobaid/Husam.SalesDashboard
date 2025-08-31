@@ -1,59 +1,99 @@
 ﻿@model IEnumerable<Husam.SalesDashboard.Models.Sale>
 
 @{
-    ViewData["Title"] = "Index";
+    ViewData["Title"] = "Sales";
+
+    // From controller
+    var years = (IEnumerable<int>)(ViewBag.Years ?? Array.Empty<int>());
+    int? selectedYear = ViewBag.SelectedYear as int?;
 }
 
-<h1>Index</h1>
+<h1>Sales</h1>
 
-<p>
-    <a asp-action="Create">Create New</a>
+<!-- Filters -->
+<form method="get" asp-controller="Sales" asp-action="Index" class="row g-2 mb-3">
+    <div class="col-auto">
+        <label class="form-label mb-0 small text-muted">Year</label>
+        <select name="year" class="form-select">
+            @* All Years option *@
+            @if (selectedYear == null)
+            {
+                <option value="" selected>All Years</option>
+            }
+            else
+            {
+                <option value="">All Years</option>
+            }
+
+            @* One option per year *@
+            @foreach (var y in years)
+            {
+                if (selectedYear == y)
+                {
+                    <option value="@y" selected>@y</option>
+                }
+                else
+                {
+                    <option value="@y">@y</option>
+                }
+            }
+        </select>
+    </div>
+    <div class="col-auto align-self-end">
+        <button type="submit" class="btn btn-primary">
+            <i class="bi bi-funnel me-1"></i> Apply
+        </button>
+        <a asp-controller="Sales" asp-action="Index" class="btn btn-light ms-2">Reset</a>
+    </div>
+</form>
+
+<!-- Toolbar -->
+<p class="mb-3">
+    <a asp-action="Create" class="btn btn-primary">Create New</a>
+    <a asp-action="Upload" class="btn btn-outline-secondary ms-2">Upload CSV</a>
+
+    <!-- Export ALL data -->
+    <a asp-action="ExportCsv" class="btn btn-success ms-2">Export CSV (All)</a>
+    <a asp-action="ExportExcel" class="btn btn-success ms-2">Export Excel (All)</a>
+
+    <!-- Export only selected year (if filter applied) -->
+    @if (selectedYear != null)
+    {
+        <a asp-action="ExportCsv" asp-route-year="@(selectedYear)" class="btn btn-outline-success ms-2">
+            Export CSV (@selectedYear)
+        </a>
+        <a asp-action="ExportExcel" asp-route-year="@(selectedYear)" class="btn btn-outline-success ms-2">
+            Export Excel (@selectedYear)
+        </a>
+    }
 </p>
-<table class="table">
+
+<table class="table table-striped">
     <thead>
         <tr>
-            <th>
-                @Html.DisplayNameFor(model => model.Quantity)
-            </th>
-            <th>
-                @Html.DisplayNameFor(model => model.UnitPriceAtSale)
-            </th>
-            <th>
-                @Html.DisplayNameFor(model => model.SoldAt)
-            </th>
-            <th>
-                @Html.DisplayNameFor(model => model.Customer)
-            </th>
-            <th>
-                @Html.DisplayNameFor(model => model.Product)
-            </th>
+            <th>@Html.DisplayNameFor(model => model.Quantity)</th>
+            <th>@Html.DisplayNameFor(model => model.UnitPriceAtSale)</th>
+            <th>@Html.DisplayNameFor(model => model.SoldAt)</th>
+            <th>@Html.DisplayNameFor(model => model.Customer)</th>
+            <th>@Html.DisplayNameFor(model => model.Product)</th>
             <th></th>
         </tr>
     </thead>
     <tbody>
-@foreach (var item in Model) {
-        <tr>
-            <td>
-                @Html.DisplayFor(modelItem => item.Quantity)
-            </td>
-            <td>
-                @Html.DisplayFor(modelItem => item.UnitPriceAtSale)
-            </td>
-            <td>
-                @Html.DisplayFor(modelItem => item.SoldAt)
-            </td>
-            <td>
-                @Html.DisplayFor(modelItem => item.Customer.Name)
-            </td>
-            <td>
-                @Html.DisplayFor(modelItem => item.Product.Name)
-            </td>
-            <td>
-                <a asp-action="Edit" asp-route-id="@item.Id">Edit</a> |
-                <a asp-action="Details" asp-route-id="@item.Id">Details</a> |
-                <a asp-action="Delete" asp-route-id="@item.Id">Delete</a>
-            </td>
-        </tr>
-}
+        @foreach (var item in Model)
+        {
+            <tr>
+                <td>@Html.DisplayFor(modelItem => item.Quantity)</td>
+                <td>@Html.DisplayFor(modelItem => item.UnitPriceAtSale)</td>
+                <td>@Html.DisplayFor(modelItem => item.SoldAt)</td>
+                <td>@Html.DisplayFor(modelItem => item.Customer!.Name)</td>
+                <td>@Html.DisplayFor(modelItem => item.Product!.Name)</td>
+                <td>
+                    <a asp-action="Edit" asp-route-id="@item.Id">Edit</a> |
+                    <a asp-action="Details" asp-route-id="@item.Id">Details</a> |
+                    <a asp-action="Delete" asp-route-id="@item.Id">Delete</a>
+                </td>
+            </tr>
+        }
     </tbody>
 </table>

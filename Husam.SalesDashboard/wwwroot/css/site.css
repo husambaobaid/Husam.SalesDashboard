@@ -20,3 +20,22 @@ html {
 body {
   margin-bottom: 60px;
 }
+
+/* KPI cards tweaks */
+.card.kpi .display-6 {
+    line-height: 1.1;
+}
+
+.card.kpi {
+    border-radius: 0.85rem;
+}
+
+/* Charts sizing */
+.chart-card canvas {
+    max-height: 320px;
+}
+
+/* Subtle card rounding & shadow consistency */
+.card {
+    border-radius: 0.85rem;
+}
